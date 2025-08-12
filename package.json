@@ -1,6 +1,6 @@
 {
   "name": "@billyfree/eventstore-client",
-  "version": "0.2.14",
+  "version": "0.2.15",
   "description": "A port of the EventStore .Net ClientAPI to Node.js",
   "main": "lib/index.js",
   "types": "lib/index.d.ts",
