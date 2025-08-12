@@ -11,7 +11,7 @@
   "scripts": {
     "clean": "rm -f lib/dist.js",
     "prebuild": "npm run clean",
-    "build": "webpack -o ./lib/dist.js",
+    "build": "webpack -o ./lib",
     "pretest": "npm run build",
     "test": "nodeunit",
     "test-debug": "TESTS_VERBOSE_LOGGING=1 nodeunit",
@@ -51,23 +51,23 @@
   },
   "homepage": "https://github.com/billyfree/node-eventstore-client#readme",
   "dependencies": {
-    "long": "^4.0.0",
-    "protobufjs": "^6.8.8",
+    "long": "^5.3.2",
+    "protobufjs": "^7.5.3",
     "strict-event-emitter-types": "^2.0.0",
-    "uuid": "^3.3.3"
+    "uuid": "^11.1.0"
   },
   "devDependencies": {
     "@types/long": "^4.0.0",
-    "@types/node": "^12.7.2",
+    "@types/node": "^22.13.14",
     "eslint": "^6.2.2",
     "eslint-config-standard": "^14.0.1",
     "eslint-plugin-import": "^2.18.2",
     "eslint-plugin-node": "^9.1.0",
     "eslint-plugin-promise": "^4.2.1",
     "eslint-plugin-standard": "^4.0.1",
-    "jsdoc": "^3.6.3",
+    "jsdoc": "^4.0.4",
     "nodeunit": "^0.11.3",
-    "webpack": "^4.41.2",
-    "webpack-cli": "^3.3.10"
+    "webpack": "^5.101.0",
+    "webpack-cli": "^5.1.4"
   }
 }
