@@ -1,0 +1,39 @@
+name: Test
+
+on:
+  pull_request:
+  push:
+    branches: [master]
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      eventstore:
+        image: eventstore/eventstore:release-5.0.11
+        env:
+          EVENTSTORE_RUN_PROJECTIONS: All
+          EVENTSTORE_START_STANDARD_PROJECTIONS: 'True'
+          EVENTSTORE_MEM_DB: 'True'
+        ports:
+          - 1113:1113
+          - 2113:2113
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - name: Wait for EventStore
+        run: |
+          for i in $(seq 1 60); do
+            if [ "$(curl -s -o /dev/null -w '%{http_code}' localhost:2113/ping)" = "200" ]; then exit 0; fi
+            sleep 2
+          done
+          echo "EventStore did not start" && exit 1
+      - run: npm test
