@@ -12,6 +12,9 @@ const fs = require('fs');
 const path = require('path');
 
 const TEST_TIMEOUT_MS = 60000;
+const TEARDOWN_TIMEOUT_MS = 10000;
+// node:test's own timeout is only a backstop; it must outlast our test + tearDown timeouts.
+const NODE_TEST_TIMEOUT_MS = TEST_TIMEOUT_MS + TEARDOWN_TIMEOUT_MS + 5000;
 const ASSERTIONS = [
   'ok', 'equal', 'notEqual', 'deepEqual', 'notDeepEqual', 'strictEqual', 'notStrictEqual',
   'throws', 'doesNotThrow', 'ifError',
@@ -60,11 +63,32 @@ function toError(failures) {
   return new AggregateError(failures, `${failures.length} assertions failed:\n${message}`);
 }
 
+// The runner enforces the test timeout itself (rather than relying only on node:test's) so that
+// tearDown always runs, even for a hung test. Suites share state (e.g. `this.conn`) between tests,
+// so after a timeout everything the stuck test does later (done(), setUp callback) must be ignored,
+// otherwise it could tear down the next test's connection.
 function runTest(suite, testFn) {
   return new Promise((resolve, reject) => {
     const context = {};
-    const test = createTestObject((failures) => {
-      const finish = () => (failures.length ? reject(toError(failures)) : resolve());
+    let abandoned = false;
+    let tornDown = false;
+    let timer;
+
+    const runTearDown = (failures) => {
+      if (tornDown) return;
+      tornDown = true;
+      clearTimeout(timer);
+      let finished = false;
+      const finish = () => {
+        if (finished) return;
+        finished = true;
+        clearTimeout(tearDownTimer);
+        return failures.length ? reject(toError(failures)) : resolve();
+      };
+      const tearDownTimer = setTimeout(() => {
+        failures.push(new Error(`tearDown timed out after ${TEARDOWN_TIMEOUT_MS}ms`));
+        finish();
+      }, TEARDOWN_TIMEOUT_MS);
       if (!suite.tearDown) return finish();
       try {
         suite.tearDown.call(context, (err) => {
@@ -75,8 +99,20 @@ function runTest(suite, testFn) {
         failures.push(e);
         finish();
       }
+    };
+
+    const test = createTestObject((failures) => {
+      if (abandoned) return; // late done() from a timed-out test
+      runTearDown(failures);
     });
+
+    timer = setTimeout(() => {
+      abandoned = true;
+      runTearDown([new Error(`Test timed out after ${TEST_TIMEOUT_MS}ms`)]);
+    }, TEST_TIMEOUT_MS);
+
     const start = () => {
+      if (abandoned) return; // late setUp callback from a timed-out test
       try {
         testFn.call(context, test);
       } catch (e) {
@@ -84,7 +120,11 @@ function runTest(suite, testFn) {
       }
     };
     if (!suite.setUp) return start();
-    suite.setUp.call(context, (err) => (err ? test.done(err) : start()));
+    try {
+      suite.setUp.call(context, (err) => (abandoned ? undefined : err ? test.done(err) : start()));
+    } catch (e) {
+      test.done(e);
+    }
   });
 }
 
@@ -96,7 +136,7 @@ function registerSuite(file) {
       if (typeof value !== 'function') {
         throw new Error(`${file}: "${name}" is not a test function (nested groups are not supported)`);
       }
-      it(name, { timeout: TEST_TIMEOUT_MS }, () => runTest(suite, value));
+      it(name, { timeout: NODE_TEST_TIMEOUT_MS }, () => runTest(suite, value));
     }
   });
 }
