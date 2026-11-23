@@ -2,7 +2,7 @@ version: '3.4'
 
 services:
   eventstore.db:
-    image: eventstore/eventstore:release-5.0.8
+    image: eventstore/eventstore:release-5.0.11
     environment:
       - EVENTSTORE_CLUSTER_SIZE=1
       - EVENTSTORE_RUN_PROJECTIONS=All
@@ -32,7 +32,7 @@ services:
         ipv4_address: 192.168.33.10
 
   nodejs:
-    image: node:14
+    image: node:24
     working_dir: /var/code
     volumes:
       - .:/var/code
